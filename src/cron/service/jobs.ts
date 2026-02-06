@@ -223,6 +223,9 @@ function mergeCronPayload(existing: CronPayload, patch: CronPayloadPatch): CronP
   if (typeof patch.timeoutSeconds === "number") {
     next.timeoutSeconds = patch.timeoutSeconds;
   }
+  if (typeof patch.allowUnsafeExternalContent === "boolean") {
+    next.allowUnsafeExternalContent = patch.allowUnsafeExternalContent;
+  }
   if (typeof patch.deliver === "boolean") {
     next.deliver = patch.deliver;
   }
@@ -297,6 +300,7 @@ function buildPayloadFromPatch(patch: CronPayloadPatch): CronPayload {
     model: patch.model,
     thinking: patch.thinking,
     timeoutSeconds: patch.timeoutSeconds,
+    allowUnsafeExternalContent: patch.allowUnsafeExternalContent,
     deliver: patch.deliver,
     channel: patch.channel,
     to: patch.to,
@@ -337,7 +341,12 @@ export function isJobDue(job: CronJob, nowMs: number, opts: { forced: boolean })
   if (opts.forced) {
     return true;
   }
-  return job.enabled && typeof job.state.nextRunAtMs === "number" && nowMs >= job.state.nextRunAtMs;
+  return (
+    job.enabled &&
+    typeof job.state.runningAtMs !== "number" &&
+    typeof job.state.nextRunAtMs === "number" &&
+    nowMs >= job.state.nextRunAtMs
+  );
 }
 
 export function resolveJobPayloadTextForMain(job: CronJob): string | undefined {

@@ -2,6 +2,7 @@ import { html, nothing } from "lit";
 import type { ChannelUiMetaEntry, CronJob, CronRunLogEntry, CronStatus } from "../types.ts";
 import type { CronFormState } from "../ui-types.ts";
 import { formatMs } from "../format.ts";
+import { pathForTab } from "../navigation.ts";
 import {
   formatCronPayload,
   formatCronSchedule,
@@ -10,6 +11,7 @@ import {
 } from "../presenter.ts";
 
 export type CronProps = {
+  basePath: string;
   loading: boolean;
   status: CronStatus | null;
   jobs: CronJob[];
@@ -167,8 +169,8 @@ export function renderCron(props: CronProps) {
                   wakeMode: (e.target as HTMLSelectElement).value as CronFormState["wakeMode"],
                 })}
             >
-              <option value="next-heartbeat">Next heartbeat</option>
               <option value="now">Now</option>
+              <option value="next-heartbeat">Next heartbeat</option>
             </select>
           </label>
           <label class="field">
@@ -301,7 +303,7 @@ export function renderCron(props: CronProps) {
               `
             : html`
               <div class="list" style="margin-top: 12px;">
-                ${props.runs.map((entry) => renderRun(entry))}
+                ${props.runs.map((entry) => renderRun(entry, props.basePath))}
               </div>
             `
       }
@@ -380,14 +382,14 @@ function renderScheduleFields(props: CronProps) {
 
 function renderJob(job: CronJob, props: CronProps) {
   const isSelected = props.runsJobId === job.id;
-  const itemClass = `list-item list-item-clickable${isSelected ? " list-item-selected" : ""}`;
+  const itemClass = `list-item list-item-clickable cron-job${isSelected ? " list-item-selected" : ""}`;
   return html`
     <div class=${itemClass} @click=${() => props.onLoadRuns(job.id)}>
       <div class="list-main">
         <div class="list-title">${job.name}</div>
         <div class="list-sub">${formatCronSchedule(job)}</div>
-        <div class="muted">${formatCronPayload(job)}</div>
-        ${job.agentId ? html`<div class="muted">Agent: ${job.agentId}</div>` : nothing}
+        <div class="muted cron-job-payload">${formatCronPayload(job)}</div>
+        ${job.agentId ? html`<div class="muted cron-job-agent">Agent: ${job.agentId}</div>` : nothing}
         <div class="chip-row" style="margin-top: 6px;">
           <span class="chip">${job.enabled ? "enabled" : "disabled"}</span>
           <span class="chip">${job.sessionTarget}</span>
@@ -395,8 +397,8 @@ function renderJob(job: CronJob, props: CronProps) {
         </div>
       </div>
       <div class="list-meta">
-        <div>${formatCronState(job)}</div>
-        <div class="row" style="justify-content: flex-end; margin-top: 8px;">
+        <div class="cron-job-state">${formatCronState(job)}</div>
+        <div class="row cron-job-actions" style="margin-top: 8px;">
           <button
             class="btn"
             ?disabled=${props.busy}
@@ -425,7 +427,7 @@ function renderJob(job: CronJob, props: CronProps) {
               props.onLoadRuns(job.id);
             }}
           >
-            Runs
+            History
           </button>
           <button
             class="btn danger"
@@ -443,7 +445,11 @@ function renderJob(job: CronJob, props: CronProps) {
   `;
 }
 
-function renderRun(entry: CronRunLogEntry) {
+function renderRun(entry: CronRunLogEntry, basePath: string) {
+  const chatUrl =
+    typeof entry.sessionKey === "string" && entry.sessionKey.trim().length > 0
+      ? `${pathForTab("chat", basePath)}?session=${encodeURIComponent(entry.sessionKey)}`
+      : null;
   return html`
     <div class="list-item">
       <div class="list-main">
@@ -453,6 +459,11 @@ function renderRun(entry: CronRunLogEntry) {
       <div class="list-meta">
         <div>${formatMs(entry.ts)}</div>
         <div class="muted">${entry.durationMs ?? 0}ms</div>
+        ${
+          chatUrl
+            ? html`<div><a class="session-link" href=${chatUrl}>Open run chat</a></div>`
+            : nothing
+        }
         ${entry.error ? html`<div class="muted">${entry.error}</div>` : nothing}
       </div>
     </div>

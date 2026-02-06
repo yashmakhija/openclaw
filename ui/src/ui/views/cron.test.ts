@@ -20,6 +20,7 @@ function createJob(id: string): CronJob {
 
 function createProps(overrides: Partial<CronProps> = {}): CronProps {
   return {
+    basePath: "",
     loading: false,
     status: null,
     jobs: [],
@@ -70,7 +71,7 @@ describe("cron view", () => {
     expect(onLoadRuns).toHaveBeenCalledWith("job-1");
   });
 
-  it("marks the selected job and keeps Runs button to a single call", () => {
+  it("marks the selected job and keeps History button to a single call", () => {
     const container = document.createElement("div");
     const onLoadRuns = vi.fn();
     const job = createJob("job-1");
@@ -88,13 +89,41 @@ describe("cron view", () => {
     const selected = container.querySelector(".list-item-selected");
     expect(selected).not.toBeNull();
 
-    const runsButton = Array.from(container.querySelectorAll("button")).find(
-      (btn) => btn.textContent?.trim() === "Runs",
+    const historyButton = Array.from(container.querySelectorAll("button")).find(
+      (btn) => btn.textContent?.trim() === "History",
     );
-    expect(runsButton).not.toBeUndefined();
-    runsButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(historyButton).not.toBeUndefined();
+    historyButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
 
     expect(onLoadRuns).toHaveBeenCalledTimes(1);
     expect(onLoadRuns).toHaveBeenCalledWith("job-1");
+  });
+
+  it("renders run chat links when session keys are present", () => {
+    const container = document.createElement("div");
+    render(
+      renderCron(
+        createProps({
+          basePath: "/ui",
+          runsJobId: "job-1",
+          runs: [
+            {
+              ts: Date.now(),
+              jobId: "job-1",
+              status: "ok",
+              summary: "done",
+              sessionKey: "agent:main:cron:job-1:run:abc",
+            },
+          ],
+        }),
+      ),
+      container,
+    );
+
+    const link = container.querySelector("a.session-link");
+    expect(link).not.toBeNull();
+    expect(link?.getAttribute("href")).toContain(
+      "/ui/chat?session=agent%3Amain%3Acron%3Ajob-1%3Arun%3Aabc",
+    );
   });
 });

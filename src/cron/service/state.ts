@@ -9,6 +9,8 @@ export type CronEvent = {
   status?: "ok" | "error" | "skipped";
   error?: string;
   summary?: string;
+  sessionId?: string;
+  sessionKey?: string;
   nextRunAtMs?: number;
 };
 
@@ -33,6 +35,8 @@ export type CronServiceDeps = {
     /** Last non-empty agent text output (not truncated). */
     outputText?: string;
     error?: string;
+    sessionId?: string;
+    sessionKey?: string;
   }>;
   onEvent?: (evt: CronEvent) => void;
 };

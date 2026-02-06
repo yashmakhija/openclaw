@@ -681,6 +681,23 @@
   width: 100%;
 }
 
+/* Cron jobs: allow long payload/state text and keep action buttons inside the card. */
+.cron-job-payload,
+.cron-job-agent,
+.cron-job-state {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.cron-job-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.cron-job-actions .btn {
+  flex: 0 0 auto;
+}
+
 @container (max-width: 560px) {
   .list-item {
     grid-template-columns: 1fr;
@@ -689,6 +706,10 @@
   .list-meta {
     min-width: 0;
     text-align: left;
+  }
+
+  .cron-job-actions {
+    justify-content: flex-start;
   }
 }
 

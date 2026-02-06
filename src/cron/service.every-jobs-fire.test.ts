@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { CronJob } from "./types.js";
 import { CronService } from "./service.js";
 
 const noopLogger = {
@@ -19,6 +20,23 @@ async function makeStorePath() {
       await fs.rm(dir, { recursive: true, force: true });
     },
   };
+}
+
+async function waitForJob(
+  cron: CronService,
+  id: string,
+  predicate: (job: CronJob | undefined) => boolean,
+) {
+  let latest: CronJob | undefined;
+  for (let i = 0; i < 30; i++) {
+    const jobs = await cron.list({ includeDisabled: true });
+    latest = jobs.find((job) => job.id === id);
+    if (predicate(latest)) {
+      return latest;
+    }
+    await vi.runOnlyPendingTimersAsync();
+  }
+  return latest;
 }
 
 describe("CronService interval/cron jobs fire on time", () => {
@@ -66,9 +84,7 @@ describe("CronService interval/cron jobs fire on time", () => {
     vi.setSystemTime(new Date(firstDueAt + 5));
     await vi.runOnlyPendingTimersAsync();
 
-    // Wait for the async onTimer to complete via the lock queue.
-    const jobs = await cron.list();
-    const updated = jobs.find((j) => j.id === job.id);
+    const updated = await waitForJob(cron, job.id, (current) => current?.state.lastStatus === "ok");
 
     expect(enqueueSystemEvent).toHaveBeenCalledWith("tick", { agentId: undefined });
     expect(updated?.state.lastStatus).toBe("ok");
@@ -112,9 +128,7 @@ describe("CronService interval/cron jobs fire on time", () => {
     vi.setSystemTime(new Date(firstDueAt + 5));
     await vi.runOnlyPendingTimersAsync();
 
-    // Wait for the async onTimer to complete via the lock queue.
-    const jobs = await cron.list();
-    const updated = jobs.find((j) => j.id === job.id);
+    const updated = await waitForJob(cron, job.id, (current) => current?.state.lastStatus === "ok");
 
     expect(enqueueSystemEvent).toHaveBeenCalledWith("cron-tick", { agentId: undefined });
     expect(updated?.state.lastStatus).toBe("ok");
