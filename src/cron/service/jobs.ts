@@ -20,6 +20,17 @@ import {
 
 const STUCK_RUN_MS = 2 * 60 * 60 * 1000;
 
+function resolveEveryAnchorMs(params: {
+  schedule: { everyMs: number; anchorMs?: number };
+  fallbackAnchorMs: number;
+}) {
+  const raw = params.schedule.anchorMs;
+  if (typeof raw === "number" && Number.isFinite(raw)) {
+    return Math.max(0, Math.floor(raw));
+  }
+  return Math.max(0, Math.floor(params.fallbackAnchorMs));
+}
+
 export function assertSupportedJobSpec(job: Pick<CronJob, "sessionTarget" | "payload">) {
   if (job.sessionTarget === "main" && job.payload.kind !== "systemEvent") {
     throw new Error('main cron jobs require payload.kind="systemEvent"');
@@ -46,6 +57,13 @@ export function findJobOrThrow(state: CronServiceState, id: string) {
 export function computeJobNextRunAtMs(job: CronJob, nowMs: number): number | undefined {
   if (!job.enabled) {
     return undefined;
+  }
+  if (job.schedule.kind === "every") {
+    const anchorMs = resolveEveryAnchorMs({
+      schedule: job.schedule,
+      fallbackAnchorMs: job.createdAtMs,
+    });
+    return computeNextRunAtMs({ ...job.schedule, anchorMs }, nowMs);
   }
   if (job.schedule.kind === "at") {
     // One-shot jobs stay due until they successfully finish.
@@ -110,10 +128,20 @@ export function nextWakeAtMs(state: CronServiceState) {
 export function createJob(state: CronServiceState, input: CronJobCreate): CronJob {
   const now = state.deps.nowMs();
   const id = crypto.randomUUID();
+  const schedule =
+    input.schedule.kind === "every"
+      ? {
+          ...input.schedule,
+          anchorMs: resolveEveryAnchorMs({
+            schedule: input.schedule,
+            fallbackAnchorMs: now,
+          }),
+        }
+      : input.schedule;
   const deleteAfterRun =
     typeof input.deleteAfterRun === "boolean"
       ? input.deleteAfterRun
-      : input.schedule.kind === "at"
+      : schedule.kind === "at"
         ? true
         : undefined;
   const enabled = typeof input.enabled === "boolean" ? input.enabled : true;
@@ -126,7 +154,7 @@ export function createJob(state: CronServiceState, input: CronJobCreate): CronJo
     deleteAfterRun,
     createdAtMs: now,
     updatedAtMs: now,
-    schedule: input.schedule,
+    schedule,
     sessionTarget: input.sessionTarget,
     wakeMode: input.wakeMode,
     payload: input.payload,

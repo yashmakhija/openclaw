@@ -56,6 +56,7 @@ import { resolveCronDeliveryPlan } from "../delivery.js";
 import { resolveDeliveryTarget } from "./delivery-target.js";
 import {
   isHeartbeatOnlyResponse,
+  pickLastDeliverablePayload,
   pickLastNonEmptyTextFromPayloads,
   pickSummaryFromOutput,
   pickSummaryFromPayloads,
@@ -457,8 +458,13 @@ export async function runCronIsolatedAgentTurn(params: {
   const summary = pickSummaryFromPayloads(payloads) ?? pickSummaryFromOutput(firstText);
   const outputText = pickLastNonEmptyTextFromPayloads(payloads);
   const synthesizedText = outputText?.trim() || summary?.trim() || undefined;
+  const deliveryPayload = pickLastDeliverablePayload(payloads);
   const deliveryPayloads =
-    payloads.length > 0 ? payloads : synthesizedText ? [{ text: synthesizedText }] : payloads;
+    deliveryPayload !== undefined
+      ? [deliveryPayload]
+      : synthesizedText
+        ? [{ text: synthesizedText }]
+        : [];
   const deliveryBestEffort = resolveCronDeliveryBestEffort(params.job);
 
   // Skip delivery for heartbeat-only responses (HEARTBEAT_OK with no real content).

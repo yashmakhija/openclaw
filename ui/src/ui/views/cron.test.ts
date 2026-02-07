@@ -126,4 +126,36 @@ describe("cron view", () => {
       "/ui/chat?session=agent%3Amain%3Acron%3Ajob-1%3Arun%3Aabc",
     );
   });
+
+  it("shows selected job name and sorts run history newest first", () => {
+    const container = document.createElement("div");
+    const job = createJob("job-1");
+    render(
+      renderCron(
+        createProps({
+          jobs: [job],
+          runsJobId: "job-1",
+          runs: [
+            { ts: 1, jobId: "job-1", status: "ok", summary: "older run" },
+            { ts: 2, jobId: "job-1", status: "ok", summary: "newer run" },
+          ],
+        }),
+      ),
+      container,
+    );
+
+    expect(container.textContent).toContain("Latest runs for Daily ping.");
+
+    const cards = Array.from(container.querySelectorAll(".card"));
+    const runHistoryCard = cards.find(
+      (card) => card.querySelector(".card-title")?.textContent?.trim() === "Run history",
+    );
+    expect(runHistoryCard).not.toBeUndefined();
+
+    const summaries = Array.from(
+      runHistoryCard?.querySelectorAll(".list-item .list-sub") ?? [],
+    ).map((el) => (el.textContent ?? "").trim());
+    expect(summaries[0]).toBe("newer run");
+    expect(summaries[1]).toBe("older run");
+  });
 });

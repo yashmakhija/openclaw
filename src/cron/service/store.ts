@@ -392,6 +392,27 @@ export async function ensureLoaded(
         }
         mutated = true;
       }
+
+      const everyMsRaw = sched.everyMs;
+      const everyMs =
+        typeof everyMsRaw === "number" && Number.isFinite(everyMsRaw)
+          ? Math.floor(everyMsRaw)
+          : null;
+      if ((kind === "every" || sched.kind === "every") && everyMs !== null) {
+        const anchorRaw = sched.anchorMs;
+        const normalizedAnchor =
+          typeof anchorRaw === "number" && Number.isFinite(anchorRaw)
+            ? Math.max(0, Math.floor(anchorRaw))
+            : typeof raw.createdAtMs === "number" && Number.isFinite(raw.createdAtMs)
+              ? Math.max(0, Math.floor(raw.createdAtMs))
+              : typeof raw.updatedAtMs === "number" && Number.isFinite(raw.updatedAtMs)
+                ? Math.max(0, Math.floor(raw.updatedAtMs))
+                : null;
+        if (normalizedAnchor !== null && anchorRaw !== normalizedAnchor) {
+          sched.anchorMs = normalizedAnchor;
+          mutated = true;
+        }
+      }
     }
 
     const delivery = raw.delivery;

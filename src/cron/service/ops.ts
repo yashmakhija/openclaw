@@ -94,6 +94,22 @@ export async function update(state: CronServiceState, id: string, patch: CronJob
     const job = findJobOrThrow(state, id);
     const now = state.deps.nowMs();
     applyJobPatch(job, patch);
+    if (job.schedule.kind === "every") {
+      const anchor = job.schedule.anchorMs;
+      if (typeof anchor !== "number" || !Number.isFinite(anchor)) {
+        const patchSchedule = patch.schedule;
+        const fallbackAnchorMs =
+          patchSchedule?.kind === "every"
+            ? now
+            : typeof job.createdAtMs === "number" && Number.isFinite(job.createdAtMs)
+              ? job.createdAtMs
+              : now;
+        job.schedule = {
+          ...job.schedule,
+          anchorMs: Math.max(0, Math.floor(fallbackAnchorMs)),
+        };
+      }
+    }
     job.updatedAtMs = now;
     if (job.enabled) {
       job.state.nextRunAtMs = computeJobNextRunAtMs(job, now);
